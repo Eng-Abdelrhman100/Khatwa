@@ -1,0 +1,473 @@
+<app-side-bar #sidebarRef (collapsedChange)="onSidebarToggle($event)"></app-side-bar>
+<app-ai-chat></app-ai-chat>
+
+<!-- =====================================================
+     TOP NAV
+     ===================================================== -->
+<nav class="top-nav" [class.sidebar-collapsed]="isSidebarCollapsed">
+  <div class="nav-content">
+    <div class="nav-left">
+      <div>
+        <div class="nav-page-title">لوحة التحكم</div>
+        <div class="nav-page-sub">مرحباً بعودتك — إليك ملخص مشروعك اليوم</div>
+      </div>
+    </div>
+    <div class="nav-right">
+      <button class="guide-btn" (click)="openGuide()">
+        <i class="bi bi-info-circle"></i>
+        <span>دليل الاستخدام</span>
+      </button>
+      <!-- زر الهامبرجر للموبايل — مخفي على الديسكتوب -->
+      <button class="topnav-hamburger" (click)="openSidebar()" aria-label="فتح القائمة">
+        <i class="bi bi-list"></i>
+      </button>
+    </div>
+  </div>
+</nav>
+
+<!-- =====================================================
+     GUIDE MODAL
+     ===================================================== -->
+<div class="modal-overlay" *ngIf="showGuide" (click)="closeGuide()">
+  <div class="modal-container guide-modal" (click)="$event.stopPropagation()">
+    <div class="modal-header">
+      <h3>
+        <i class="bi bi-book-half me-2"></i>
+        دليل استخدام لوحة التحكم
+      </h3>
+      <button class="close-btn" (click)="closeGuide()">
+        <i class="bi bi-x-lg"></i>
+      </button>
+    </div>
+    <div class="modal-body">
+      <p class="guide-intro">لوحة التحكم هي مركز إدارة مشروعك، تعرض لك ملخصاً شاملاً عن الأداء والتقدم.</p>
+      <div class="guide-features">
+        <div class="guide-item">
+          <i class="bi bi-bar-chart-line guide-icon"></i>
+          <div><h4>متابعة التقدم العام</h4><p>تابع تقدم مشروعك ومهامك بشكل مباشر</p></div>
+        </div>
+        <div class="guide-item">
+          <i class="bi bi-exclamation-triangle guide-icon"></i>
+          <div><h4>تنبيهات ذكية</h4><p>احصل على تنبيهات فورية عند وجود مشاكل</p></div>
+        </div>
+        <div class="guide-item">
+          <i class="bi bi-lightbulb guide-icon"></i>
+          <div><h4>توصيات بالذكاء الاصطناعي</h4><p>اقتراحات ذكية لتحسين أداء مشروعك</p></div>
+        </div>
+        <div class="guide-item">
+          <i class="bi bi-rocket-takeoff guide-icon"></i>
+          <div><h4>اتخاذ قرارات أسرع</h4><p>بيانات واضحة تساعدك على اتخاذ القرارات</p></div>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-primary" (click)="closeGuide()">فهمت، شكراً</button>
+    </div>
+  </div>
+</div>
+
+<!-- =====================================================
+     DASHBOARD MAIN
+     ===================================================== -->
+<main class="dashboard-main" [class.sidebar-collapsed]="isSidebarCollapsed">
+
+  <!-- Loading Overlay -->
+  <div class="loading-overlay" *ngIf="isInitialLoading">
+    <div class="loading-spinner">
+      <div class="spinner"></div>
+      <p>جاري تحميل لوحة التحكم...</p>
+    </div>
+  </div>
+
+  <!-- =====================================================
+       WELCOME SECTION
+       — userName: من AuthService عبر loadUserData()
+       ===================================================== -->
+  <section class="welcome-section">
+    <div class="welcome-content">
+      <div class="welcome-text">
+        <h1 class="welcome-title">
+          مرحباً بك، <span class="user-name">{{ userName }}</span>
+          <i class="bi bi-hand-wave ms-2"></i>
+        </h1>
+        <p class="welcome-subtitle">إليك نظرة سريعة على مشروعك اليوم</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- =====================================================
+       METRICS GRID
+       — totalRevenue, revenueChange   ← FinanceService.getSummary()
+       — totalExpenses, expensesChange ← FinanceService.getSummary()
+       — profit, profitMargin          ← محسوبة في processFinance()
+       — completedTasks, totalTasks, tasksProgress ← TaskService.getTasks()
+       ===================================================== -->
+  <section class="metrics-grid">
+
+    <!-- كارت الإيرادات — FinanceService → processFinance() -->
+    <div class="metric-card revenue" [class.loading]="financeLoading">
+      <div class="metric-icon-wrapper">
+        <i class="bi bi-currency-dollar metric-icon"></i>
+      </div>
+      <div class="metric-content">
+        <p class="metric-label">الإيرادات</p>
+        <h3 class="metric-value">{{ formatCurrency(totalRevenue) }}</h3>
+        <div class="metric-change positive" *ngIf="revenueChange > 0">
+          <i class="bi bi-arrow-up-short"></i>
+          <span>+{{ revenueChange }}%</span>
+        </div>
+      </div>
+      <div class="metric-skeleton" *ngIf="financeLoading"></div>
+    </div>
+
+    <!-- كارت المصروفات — FinanceService → processFinance() -->
+    <div class="metric-card expenses" [class.loading]="financeLoading">
+      <div class="metric-icon-wrapper">
+        <i class="bi bi-wallet2 metric-icon"></i>
+      </div>
+      <div class="metric-content">
+        <p class="metric-label">المصروفات</p>
+        <h3 class="metric-value">{{ formatCurrency(totalExpenses) }}</h3>
+        <div class="metric-change negative" *ngIf="expensesChange > 0">
+          <i class="bi bi-arrow-down-short"></i>
+          <span>+{{ expensesChange }}%</span>
+        </div>
+      </div>
+      <div class="metric-skeleton" *ngIf="financeLoading"></div>
+    </div>
+
+    <!-- كارت الأرباح — محسوب: profit = totalRevenue - totalExpenses -->
+    <div class="metric-card profit" [class.loading]="financeLoading">
+      <div class="metric-icon-wrapper">
+        <i class="bi bi-graph-up-arrow metric-icon"></i>
+      </div>
+      <div class="metric-content">
+        <p class="metric-label">الأرباح</p>
+        <h3 class="metric-value" [class.negative]="profit < 0">{{ formatCurrency(profit) }}</h3>
+        <p class="metric-subtitle">{{ profitMargin }}% هامش الربح</p>
+      </div>
+      <div class="metric-skeleton" *ngIf="financeLoading"></div>
+    </div>
+
+    <!-- كارت المهام المكتملة — TaskService → processTasks() -->
+    <div class="metric-card tasks" [class.loading]="tasksLoading">
+      <div class="metric-icon-wrapper">
+        <i class="bi bi-check2-square metric-icon"></i>
+      </div>
+      <div class="metric-content">
+        <p class="metric-label">المهام المكتملة</p>
+        <h3 class="metric-value">{{ completedTasks }}/{{ totalTasks }}</h3>
+        <div class="progress-bar-mini">
+          <div class="progress-fill" [style.width.%]="tasksProgress"></div>
+        </div>
+      </div>
+      <div class="metric-skeleton" *ngIf="tasksLoading"></div>
+    </div>
+
+  </section>
+
+  <!-- =====================================================
+       CHARTS SECTION
+       — chart تقدم المهام:   completedTasks, inProgressTasks, pendingTasks ← TaskService
+       — chart الملخص المالي: totalRevenue, totalExpenses, profit ← FinanceService
+       — chart نشاط الأسبوع:  weeklyActivity[] ← TaskService → calculateWeeklyActivity()
+                               completedTasks ← نفس بيانات كارت "المهام المكتملة"
+       ===================================================== -->
+  <section class="charts-section">
+
+    <!-- Donut: تقدم المهام
+         ↑ يأخذ completedTasks, inProgressTasks, pendingTasks — مصدرها TaskService -->
+    <div class="chart-card">
+      <div class="chart-header">
+        <div>
+          <h3>
+            <i class="bi bi-pie-chart me-1"></i>
+            تقدم المهام
+          </h3>
+          <span class="chart-subtitle">{{ totalTasks }} مهمة إجمالي</span>
+        </div>
+      </div>
+      <div class="chart-container" style="height:220px">
+        <canvas #tasksProgressChart></canvas>
+      </div>
+      <div class="chart-footer">
+        <div class="chart-stat">
+          <span class="stat-label">نسبة الإنجاز</span>
+          <span class="stat-value success">{{ tasksProgress }}%</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Bar: الملخص المالي
+         ↑ يأخذ totalRevenue, totalExpenses, profit — مصدرها FinanceService -->
+    <div class="chart-card">
+      <div class="chart-header">
+        <div>
+          <h3>
+            <i class="bi bi-cash-stack me-1"></i>
+            الملخص المالي
+          </h3>
+          <span class="chart-subtitle">هذا الشهر</span>
+        </div>
+      </div>
+      <div class="chart-container" style="height:220px">
+        <canvas #miniFinanceChart></canvas>
+      </div>
+      <div class="chart-footer">
+        <div class="chart-stat">
+          <span class="stat-label">هامش الربح</span>
+          <span class="stat-value"
+            [class.success]="profitMargin > 0"
+            [class.danger]="profitMargin < 0">
+            {{ profitMargin }}%
+          </span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Line: نشاط الأسبوع
+         ↑ يأخذ weeklyActivity[] و completedTasks — مصدرها TaskService -->
+    <div class="chart-card full-width">
+      <div class="chart-header">
+        <div>
+          <h3>
+            <i class="bi bi-activity me-1"></i>
+            نشاط الأسبوع
+          </h3>
+          <span class="chart-subtitle">المهام المكتملة خلال 7 أيام</span>
+        </div>
+      </div>
+      <div class="chart-container" style="height:220px">
+        <canvas #activityChart></canvas>
+      </div>
+      <div class="chart-footer">
+        <div class="chart-stat">
+          <span class="stat-label">إجمالي هذا الأسبوع</span>
+          <span class="stat-value success">{{ completedTasks }} مهمة</span>
+        </div>
+        <div class="chart-stat">
+          <span class="stat-label">متوسط يومي</span>
+          <span class="stat-value info">{{ (completedTasks / 7).toFixed(1) }} مهمة</span>
+        </div>
+      </div>
+    </div>
+
+  </section>
+
+  <!-- =====================================================
+       CONTENT GRID
+       ===================================================== -->
+  <div class="content-grid">
+
+    <!-- ================= LEFT COLUMN ================= -->
+    <div class="left-column">
+
+      <!-- بطاقة: تقدم المشروع
+           — projectProgress: محسوب من progressSteps المكتملة
+           — progressSteps[0] ← ProjectService.getProjects()
+           — progressSteps[1] ← TaskService (مهام تحتوي كلمة "تسويق")
+           — progressSteps[2] ← يُضاف لاحقاً من TeamService -->
+      <div class="dashboard-card progress-card">
+        <div class="card-header">
+          <h3 class="card-title">
+            <i class="bi bi-bar-chart-steps title-icon-svg"></i>
+            تقدم المشروع
+          </h3>
+          <span class="progress-percentage">{{ projectProgress }}%</span>
+        </div>
+        <div class="card-body">
+          <div class="circular-progress-container">
+            <svg class="circular-progress" viewBox="0 0 200 200">
+              <defs>
+                <linearGradient id="progressGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+                  <stop offset="0%" style="stop-color:#1f9950;stop-opacity:1"/>
+                  <stop offset="100%" style="stop-color:#00e676;stop-opacity:1"/>
+                </linearGradient>
+              </defs>
+              <circle class="progress-bg" cx="100" cy="100" r="90"></circle>
+              <circle
+                class="progress-bar"
+                cx="100" cy="100" r="90"
+                [style.stroke-dasharray]="565"
+                [style.stroke-dashoffset]="565 - (565 * projectProgress / 100)"
+              ></circle>
+              <text x="100" y="95" class="progress-text-large">{{ projectProgress }}%</text>
+              <text x="100" y="115" class="progress-text-small">مكتمل</text>
+            </svg>
+          </div>
+
+          <div class="progress-steps">
+            <div class="step" *ngFor="let step of progressSteps; let i = index" [class.completed]="step.done">
+              <div class="step-icon">
+                <i *ngIf="step.done" class="bi bi-check-circle-fill"></i>
+                <span *ngIf="!step.done">{{ i + 1 }}</span>
+              </div>
+              <div class="step-content">
+                <p class="step-title">{{ step.title }}</p>
+                <p class="step-description">{{ step.description }}</p>
+              </div>
+            </div>
+          </div>
+
+
+        </div>
+      </div>
+
+      <!-- بطاقة: المهام القادمة
+           — upcomingTasks[]: من TaskService.getTasks() → processTasks()
+           ↑ نفس مصدر بيانات كارت "المهام المكتملة" في metrics-grid -->
+      <div class="dashboard-card tasks-card">
+        <div class="card-header">
+          <h3 class="card-title">
+            <i class="bi bi-calendar-check title-icon-svg"></i>
+            المهام القادمة
+          </h3>
+          <button class="btn-link" [routerLink]="['/tasks-and-team']">عرض الكل</button>
+        </div>
+        <div class="card-body">
+          <div class="tasks-list" *ngIf="upcomingTasks.length > 0; else noTasks">
+            <div class="task-item" *ngFor="let task of upcomingTasks">
+              <div class="task-indicator" [class]="task.priority"></div>
+              <div class="task-info">
+                <h4 class="task-title">{{ task.title }}</h4>
+                <div class="task-meta">
+                  <span class="task-time" *ngIf="task.dueDate">
+                    <i class="bi bi-clock"></i>
+                    {{ formatDate(task.dueDate) }}
+                  </span>
+                  <span class="task-priority" [class]="task.priority">{{ getPriorityLabel(task.priority) }}</span>
+                </div>
+              </div>
+              <button class="task-check" (click)="completeTask(task.id)">
+                <i class="bi bi-check-lg"></i>
+              </button>
+            </div>
+          </div>
+          <ng-template #noTasks>
+            <div class="empty-state">
+              <i class="bi bi-clipboard2-x empty-icon"></i>
+              <p>لا توجد مهام قادمة</p>
+              <button class="btn btn-secondary" [routerLink]="['/tasks-and-team']">إضافة مهمة</button>
+            </div>
+          </ng-template>
+        </div>
+      </div>
+
+    </div><!-- end left-column -->
+
+    <!-- ================= RIGHT COLUMN ================= -->
+    <div class="right-column">
+
+      <!-- بطاقة: إجراءات سريعة — روابط تنقل فقط -->
+      <div class="dashboard-card actions-card">
+        <div class="card-header">
+          <h3 class="card-title">
+            <i class="bi bi-lightning-charge title-icon-svg"></i>
+            إجراءات سريعة
+          </h3>
+        </div>
+        <div class="card-body">
+          <div class="actions-grid">
+            <button class="action-btn marketing" [routerLink]="['/marketing']">
+              <div class="action-icon">
+                <i class="bi bi-megaphone"></i>
+              </div>
+              <span>خطة تسويقية</span>
+            </button>
+            <button class="action-btn finance" [routerLink]="['/financial-overview']">
+              <div class="action-icon">
+                <i class="bi bi-credit-card"></i>
+              </div>
+              <span>سجل مالي</span>
+            </button>
+            <button class="action-btn tasks" [routerLink]="['/tasks-and-team']">
+              <div class="action-icon">
+                <i class="bi bi-person-plus"></i>
+              </div>
+              <span>إضافة عضو</span>
+            </button>
+            <button class="action-btn community" [routerLink]="['/community']">
+              <div class="action-icon">
+                <i class="bi bi-chat-dots"></i>
+              </div>
+              <span>منشور جديد</span>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- بطاقة: توصيات ذكية
+           — aiInsights[]: مُولَّدة من generateAIInsights()
+           ↑ تعتمد على: tasksProgress, pendingTasks (← TaskService)
+                        profit, profitMargin (← FinanceService)
+                        totalProjects, progressSteps (← ProjectService) -->
+      <div class="dashboard-card insights-card">
+        <div class="card-header">
+          <h3 class="card-title">
+            <i class="bi bi-robot title-icon-svg"></i>
+            توصيات ذكية
+          </h3>
+          <span class="ai-badge">AI</span>
+        </div>
+        <div class="card-body">
+          <div class="insights-list" *ngIf="aiInsights.length > 0; else noInsights">
+            <div class="insight-item" *ngFor="let insight of aiInsights" [class]="insight.type">
+              <div class="insight-icon">
+                <i *ngIf="insight.type === 'success'" class="bi bi-check-circle-fill"></i>
+                <i *ngIf="insight.type === 'warning'" class="bi bi-exclamation-triangle-fill"></i>
+                <i *ngIf="insight.type === 'info'"    class="bi bi-info-circle-fill"></i>
+              </div>
+              <div class="insight-content">
+                <p class="insight-text">{{ insight.message }}</p>
+                <button class="insight-action" *ngIf="insight.action" (click)="handleInsightAction(insight.action)">
+                  {{ insight.actionLabel }}
+                  <i class="bi bi-arrow-left-short"></i>
+                </button>
+              </div>
+            </div>
+          </div>
+          <ng-template #noInsights>
+            <div class="empty-state">
+              <i class="bi bi-three-dots empty-icon"></i>
+              <p>جاري تحليل بياناتك...</p>
+            </div>
+          </ng-template>
+        </div>
+      </div>
+
+      <!-- بطاقة: النشاط الأخير
+           — recentActivities[]: مُولَّدة من generateRecentActivities()
+           ↑ تعتمد على: projects[] (← ProjectService)
+                        completedTasks (← TaskService)
+                        totalRevenue (← FinanceService) -->
+      <div class="dashboard-card activity-card">
+        <div class="card-header">
+          <h3 class="card-title">
+            <i class="bi bi-bell title-icon-svg"></i>
+            النشاط الأخير
+          </h3>
+        </div>
+        <div class="card-body">
+          <div class="activity-timeline" *ngIf="recentActivities.length > 0; else noActivity">
+            <div class="activity-item" *ngFor="let activity of recentActivities">
+              <div class="activity-dot" [class]="activity.type"></div>
+              <div class="activity-content">
+                <p class="activity-text">{{ activity.message }}</p>
+                <span class="activity-time">{{ getRelativeTime(activity.timestamp) }}</span>
+              </div>
+            </div>
+          </div>
+          <ng-template #noActivity>
+            <div class="empty-state">
+              <i class="bi bi-bell-slash empty-icon"></i>
+              <p>لا توجد أنشطة حديثة</p>
+            </div>
+          </ng-template>
+        </div>
+      </div>
+
+    </div><!-- end right-column -->
+
+  </div><!-- end content-grid -->
+
+</main>

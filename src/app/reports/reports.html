@@ -1,0 +1,430 @@
+<app-side-bar #sidebarRef (collapsedChange)="onSidebarToggle($event)"></app-side-bar>
+<app-ai-chat></app-ai-chat>
+
+<!-- ===== TOP NAV ===== -->
+<nav class="top-nav" [class.sidebar-collapsed]="isSidebarCollapsed">
+  <div class="nav-content">
+    <div class="nav-left">
+      <div>
+        <div class="nav-page-title">التقارير</div>
+        <div class="nav-page-sub">أنشئ وحمّل تقاريرك بسهولة</div>
+      </div>
+    </div>
+    <div class="nav-right">
+      <button class="btn-add" (click)="createNewReport()">
+        <i class="bi bi-plus-lg"></i>
+        <span class="btn-text">تقرير جديد</span>
+      </button>
+      <button class="guide-btn" (click)="openGuide()">
+        <i class="bi bi-info-circle"></i>
+        <span class="btn-text">دليل الاستخدام</span>
+      </button>
+      <!-- زر الهامبرجر — يظهر فقط على موبايل/تابلت -->
+      <button class="topnav-hamburger" (click)="openSidebar()" aria-label="فتح القائمة">
+        <i class="bi bi-list"></i>
+      </button>
+    </div>
+  </div>
+</nav>
+
+<!-- ===== GUIDE MODAL ===== -->
+<div class="modal-overlay" *ngIf="showGuide" (click)="closeGuide()">
+  <div class="modal-container" (click)="$event.stopPropagation()">
+    <div class="modal-header">
+      <h3><i class="bi bi-file-earmark-text"></i> دليل استخدام التقارير</h3>
+      <button class="close-btn" (click)="closeGuide()">
+        <i class="bi bi-x-lg"></i>
+      </button>
+    </div>
+    <div class="modal-body">
+      <p class="guide-intro">أنشئ تقارير احترافية لمشروعك بضغطة زر واحدة.</p>
+      <div class="guide-features">
+        <div class="guide-item">
+          <i class="bi bi-grid guide-icon"></i>
+          <div><h4>قوالب جاهزة</h4><p>اختر من بين ٦ قوالب تقارير متخصصة</p></div>
+        </div>
+        <div class="guide-item">
+          <i class="bi bi-download guide-icon"></i>
+          <div><h4>تحميل فوري</h4><p>حمّل تقاريرك بصيغة PDF أو Excel</p></div>
+        </div>
+        <div class="guide-item">
+          <i class="bi bi-sliders guide-icon"></i>
+          <div><h4>تقارير مخصصة</h4><p>اختر الأقسام التي تريد تضمينها بحرية</p></div>
+        </div>
+        <div class="guide-item">
+          <i class="bi bi-share guide-icon"></i>
+          <div><h4>مشاركة سهلة</h4><p>شارك تقاريرك مع فريقك بنقرة واحدة</p></div>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-primary" (click)="closeGuide()">فهمت، شكراً</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== CREATE REPORT MODAL
+     يُرسَل عبر generateReport() إلى API: POST /api/v1/reports/generate
+     reportOptions.type و startDate و endDate و format تُرسَل في الـ body
+===== -->
+<div class="modal-overlay" *ngIf="showCreateModal" (click)="cancelReportGeneration()">
+  <div class="modal-container" (click)="$event.stopPropagation()">
+    <div class="modal-header">
+      <h3><i class="bi bi-bar-chart"></i> إنشاء تقرير جديد</h3>
+      <button class="close-btn" (click)="cancelReportGeneration()">
+        <i class="bi bi-x-lg"></i>
+      </button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label class="form-label">نوع التقرير</label>
+        <select [(ngModel)]="reportOptions.type" class="form-input">
+          <option value="financial">تقرير مالي</option>
+          <option value="marketing">تقرير تسويقي</option>
+          <option value="tasks">تقرير المهام</option>
+          <option value="team">تقرير الفريق</option>
+          <option value="comprehensive">تقرير شامل</option>
+        </select>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">من تاريخ</label>
+          <input type="date" [(ngModel)]="reportOptions.startDate" class="form-input">
+        </div>
+        <div class="form-group">
+          <label class="form-label">إلى تاريخ</label>
+          <input type="date" [(ngModel)]="reportOptions.endDate" class="form-input">
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">صيغة التقرير</label>
+        <div class="format-btns">
+          <button class="format-btn" [class.active]="reportOptions.format === 'pdf'" (click)="reportOptions.format = 'pdf'">
+            <i class="bi bi-file-earmark-pdf"></i> PDF
+          </button>
+          <button class="format-btn" [class.active]="reportOptions.format === 'excel'" (click)="reportOptions.format = 'excel'">
+            <i class="bi bi-file-earmark-excel"></i> Excel
+          </button>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-cancel" (click)="cancelReportGeneration()" [disabled]="isGenerating">إلغاء</button>
+      <button class="btn-primary" (click)="generateReport()" [disabled]="isGenerating">
+        <i class="bi bi-arrow-repeat spin-icon" *ngIf="isGenerating"></i>
+        <i class="bi bi-file-earmark-plus" *ngIf="!isGenerating"></i>
+        {{ isGenerating ? 'جاري الإنشاء...' : 'إنشاء التقرير' }}
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== CUSTOM REPORT MODAL
+     customSections المختارة تُرسَل مع reportOptions عبر generateReport()
+     API: POST /api/v1/reports/generate  { sections: [...], ...reportOptions }
+===== -->
+<div class="modal-overlay" *ngIf="showCustomModal" (click)="cancelReportGeneration()">
+  <div class="modal-container modal-lg" (click)="$event.stopPropagation()">
+    <div class="modal-header">
+      <h3><i class="bi bi-sliders"></i> تقرير مخصص</h3>
+      <button class="close-btn" (click)="cancelReportGeneration()">
+        <i class="bi bi-x-lg"></i>
+      </button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label class="form-label">اختر الأقسام المطلوبة</label>
+        <!-- section.selected يُحدَّث عبر toggleCustomSection() -->
+        <div class="sections-grid">
+          <label *ngFor="let section of customSections"
+            class="section-item" [class.selected]="section.selected"
+            (click)="toggleCustomSection(section)">
+            <input type="checkbox" [checked]="section.selected" style="display:none">
+            <i class="bi section-check-icon"
+               [class.bi-check-square-fill]="section.selected"
+               [class.bi-square]="!section.selected"></i>
+            <span>{{ section.label }}</span>
+          </label>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">من تاريخ</label>
+          <input type="date" [(ngModel)]="reportOptions.startDate" class="form-input">
+        </div>
+        <div class="form-group">
+          <label class="form-label">إلى تاريخ</label>
+          <input type="date" [(ngModel)]="reportOptions.endDate" class="form-input">
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">صيغة التقرير</label>
+        <div class="format-btns">
+          <button class="format-btn" [class.active]="reportOptions.format === 'pdf'" (click)="reportOptions.format = 'pdf'">
+            <i class="bi bi-file-earmark-pdf"></i> PDF
+          </button>
+          <button class="format-btn" [class.active]="reportOptions.format === 'excel'" (click)="reportOptions.format = 'excel'">
+            <i class="bi bi-file-earmark-excel"></i> Excel
+          </button>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-cancel" (click)="cancelReportGeneration()" [disabled]="isGenerating">إلغاء</button>
+      <button class="btn-primary" (click)="generateReport()" [disabled]="isGenerating">
+        <i class="bi bi-arrow-repeat spin-icon" *ngIf="isGenerating"></i>
+        <i class="bi bi-file-earmark-plus" *ngIf="!isGenerating"></i>
+        {{ isGenerating ? 'جاري الإنشاء...' : 'إنشاء التقرير' }}
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== MAIN ===== -->
+<main class="reports-main" [class.sidebar-collapsed]="isSidebarCollapsed">
+
+  <!-- رسائل النجاح والخطأ -->
+  <div class="success-banner" *ngIf="successMessage">
+    <i class="bi bi-check-circle-fill"></i>
+    {{ successMessage }}
+  </div>
+  <div class="error-banner" *ngIf="errorMessage">
+    <i class="bi bi-exclamation-triangle-fill"></i>
+    {{ errorMessage }}
+  </div>
+
+  <!-- ===== WELCOME
+       totalReports ← API: GET /reports/stats  →  stats.totalReports
+       totalDownloads ← stats.totalDownloads
+       totalViews ← stats.totalViews
+  ===== -->
+  <section class="welcome-section">
+    <div class="welcome-content">
+      <div class="welcome-text">
+        <h1 class="welcome-title">مركز التقارير <i class="bi bi-file-earmark-bar-graph"></i></h1>
+        <p class="welcome-sub">أنشئ تقارير احترافية وتتبع أداء مشروعك بدقة</p>
+      </div>
+      <div class="welcome-stats">
+        <!-- يستقبل بياناته من loadStats() → totalReports -->
+        <div class="w-stat">
+          <i class="bi bi-clipboard-data w-stat-icon"></i>
+          <div>
+            <span class="w-stat-lbl">إجمالي التقارير</span>
+            <span class="w-stat-val">{{ totalReports }}</span>
+          </div>
+        </div>
+        <!-- يستقبل بياناته من loadStats() → totalDownloads -->
+        <div class="w-stat">
+          <i class="bi bi-download w-stat-icon"></i>
+          <div>
+            <span class="w-stat-lbl">عمليات التحميل</span>
+            <span class="w-stat-val">{{ totalDownloads }}</span>
+          </div>
+        </div>
+        <!-- يستقبل بياناته من loadStats() → totalViews -->
+        <div class="w-stat">
+          <i class="bi bi-eye w-stat-icon"></i>
+          <div>
+            <span class="w-stat-lbl">المشاهدات</span>
+            <span class="w-stat-val">{{ totalViews }}</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== METRICS
+       كل قيمة مشتركة مع WELCOME: totalReports / totalDownloads / totalShares / totalViews
+       جميعها من loadStats() ← API: GET /api/v1/reports/stats
+  ===== -->
+  <section class="metrics-grid">
+    <div class="mc">
+      <div class="mc-icon"><i class="bi bi-clipboard-data"></i></div>
+      <div class="mc-lbl">إجمالي التقارير</div>
+      <div class="mc-val">{{ totalReports }}</div>
+      <div class="mini-prog"><div class="mini-prog-fill g" style="width:72%"></div></div>
+    </div>
+    <div class="mc">
+      <div class="mc-icon"><i class="bi bi-download"></i></div>
+      <div class="mc-lbl">التحميلات</div>
+      <div class="mc-val">{{ totalDownloads }}</div>
+      <div class="mini-prog"><div class="mini-prog-fill o" style="width:85%"></div></div>
+    </div>
+    <div class="mc">
+      <div class="mc-icon"><i class="bi bi-share"></i></div>
+      <div class="mc-lbl">المشاركات</div>
+      <div class="mc-val">{{ totalShares }}</div>
+      <div class="mini-prog"><div class="mini-prog-fill b" style="width:55%"></div></div>
+    </div>
+    <div class="mc">
+      <div class="mc-icon"><i class="bi bi-eye"></i></div>
+      <div class="mc-lbl">المشاهدات الكلية</div>
+      <div class="mc-val">{{ totalViews }}</div>
+      <div class="mini-prog"><div class="mini-prog-fill p" style="width:90%"></div></div>
+    </div>
+  </section>
+
+  <!-- ===== TEMPLATES
+       reportTemplates مصدرها loadTemplates() — يمكن أن تكون ثابتة أو من API
+       النقر على بطاقة يستدعي createReport(t) الذي يفتح الموديل المناسب
+  ===== -->
+  <section class="section-block">
+    <div class="section-head">
+      <div class="section-title"><i class="bi bi-layout-text-window-reverse"></i> قوالب التقارير</div>
+      <div class="section-sub">اختر نوع التقرير الذي تريد إنشاءه</div>
+    </div>
+    <div class="templates-grid">
+      <div class="template-card" *ngFor="let t of reportTemplates" (click)="createReport(t)">
+        <div class="template-icon" [style.background]="t.color + '18'" [style.color]="t.color">
+          <i class="bi bi-{{ t.biIcon }}"></i>
+        </div>
+        <div class="template-info">
+          <div class="template-title">{{ t.title }}</div>
+          <div class="template-desc">{{ t.description }}</div>
+        </div>
+        <button class="template-btn" [style.background]="t.color">
+          <i class="bi bi-plus-lg"></i>
+          إنشاء
+        </button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== CONTENT ROW ===== -->
+  <div class="content-row">
+
+    <!-- التقارير المحفوظة
+         filteredReports مشتقة من savedReportsList عبر filterReports()
+         savedReportsList تُحمَّل عبر loadReports() ← API: GET /api/v1/reports
+    -->
+    <div class="reports-col">
+      <div class="section-block">
+        <div class="section-head-row">
+          <div>
+            <div class="section-title"><i class="bi bi-folder2-open"></i> التقارير المحفوظة</div>
+            <!-- filteredReports.length يتغير عند filterReports() -->
+            <div class="section-sub">{{ filteredReports.length }} تقرير</div>
+          </div>
+          <div class="filters-row">
+            <!-- البحث النصي — يستدعي filterReports() عند الكتابة -->
+            <div class="search-wrap">
+              <i class="bi bi-search search-icon"></i>
+              <input type="text" [(ngModel)]="searchQuery" (input)="filterReports()"
+                placeholder="بحث في التقارير..." class="search-input">
+            </div>
+            <!-- فلتر النوع — يستدعي filterReports() عند التغيير -->
+            <select [(ngModel)]="selectedTypeFilter" (change)="filterReports()" class="type-select">
+              <option value="all">كل الأنواع</option>
+              <option value="financial">مالي</option>
+              <option value="marketing">تسويقي</option>
+              <option value="tasks">المهام</option>
+              <option value="team">الفريق</option>
+              <option value="comprehensive">شامل</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="reports-list">
+          <div class="report-card" *ngFor="let report of filteredReports">
+            <div class="report-left">
+              <!-- الأيقونة تُحدَّد بناءً على report.type عبر getTypeIcon() -->
+              <div class="report-icon" [ngClass]="'rt-' + report.type">
+                <i class="bi bi-{{ getTypeIcon(report.type) }}"></i>
+              </div>
+              <div class="report-info">
+                <div class="report-title">{{ report.title }}</div>
+                <div class="report-meta">
+                  <span class="report-author">{{ report.author }}</span>
+                  <span class="dot">·</span>
+                  <span class="report-date">{{ report.date }}</span>
+                  <span class="dot">·</span>
+                  <!-- report.views يُحدَّث عند viewReport() -->
+                  <span class="report-views"><i class="bi bi-eye"></i> {{ report.views }}</span>
+                  <span class="dot">·</span>
+                  <span class="report-format" [class.pdf]="report.format === 'pdf'" [class.excel]="report.format === 'excel'">
+                    {{ report.format.toUpperCase() }}
+                  </span>
+                </div>
+              </div>
+            </div>
+            <div class="report-right">
+              <span class="status-badge" [class]="'status-' + report.status">{{ getStatusText(report.status) }}</span>
+              <!-- عرض — يُحدّث report.views و totalViews -->
+              <button class="act-btn" (click)="viewReport(report)" title="عرض">
+                <i class="bi bi-eye"></i>
+              </button>
+              <!-- تحميل — API: GET /api/v1/reports/:id/download -->
+              <button class="act-btn" (click)="downloadReport(report)" title="تحميل">
+                <i class="bi bi-download"></i>
+              </button>
+              <!-- مشاركة — يُحدّث totalShares -->
+              <button class="act-btn" (click)="shareReport(report)" title="مشاركة">
+                <i class="bi bi-share"></i>
+              </button>
+              <!-- حذف — API: DELETE /api/v1/reports/:id -->
+              <button class="act-btn act-del" (click)="deleteReport(report)" title="حذف">
+                <i class="bi bi-trash3"></i>
+              </button>
+            </div>
+          </div>
+
+          <div class="empty-state" *ngIf="filteredReports.length === 0">
+            <i class="bi bi-folder2 empty-icon"></i>
+            <p>لا توجد تقارير. أنشئ أول تقرير لك!</p>
+            <button class="btn-primary" (click)="createNewReport()">إنشاء تقرير</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- العمود الجانبي -->
+    <aside class="chart-col">
+
+      <!-- الرسم البياني — بياناته من loadChartData() ← API: GET /api/v1/reports/activity -->
+      <div class="section-block">
+        <div class="section-head">
+          <div class="section-title"><i class="bi bi-bar-chart-line"></i> نشاط التقارير</div>
+          <div class="section-sub">آخر ٧ أشهر</div>
+        </div>
+        <div class="chart-wrap">
+          <canvas #reportsChart></canvas>
+        </div>
+      </div>
+
+      <!-- الإجراءات السريعة — كل زر يفتح الموديل بإعدادات محددة مسبقاً -->
+      <div class="section-block">
+        <div class="section-head">
+          <div class="section-title"><i class="bi bi-lightning-charge"></i> إجراءات سريعة</div>
+        </div>
+        <div class="quick-actions">
+          <!-- تقرير شامل PDF — يضبط reportOptions مباشرةً ثم يفتح الموديل -->
+          <button class="qa-btn" (click)="reportOptions.format='pdf'; reportOptions.type='comprehensive'; showCreateModal=true">
+            <i class="bi bi-bar-chart qa-icon"></i>
+            <span>تقرير شامل PDF</span>
+            <i class="bi bi-chevron-left qa-arrow"></i>
+          </button>
+          <!-- تقرير مالي Excel -->
+          <button class="qa-btn" (click)="reportOptions.format='excel'; reportOptions.type='financial'; showCreateModal=true">
+            <i class="bi bi-currency-dollar qa-icon"></i>
+            <span>تقرير مالي Excel</span>
+            <i class="bi bi-chevron-left qa-arrow"></i>
+          </button>
+          <!-- تقرير الفريق -->
+          <button class="qa-btn" (click)="reportOptions.format='pdf'; reportOptions.type='team'; showCreateModal=true">
+            <i class="bi bi-people qa-icon"></i>
+            <span>تقرير الفريق</span>
+            <i class="bi bi-chevron-left qa-arrow"></i>
+          </button>
+          <!-- تقرير مخصص — يفتح موديل الأقسام -->
+          <button class="qa-btn" (click)="showCustomModal=true; reportOptions.type='custom'">
+            <i class="bi bi-sliders qa-icon"></i>
+            <span>تقرير مخصص</span>
+            <i class="bi bi-chevron-left qa-arrow"></i>
+          </button>
+        </div>
+      </div>
+
+    </aside>
+  </div>
+
+</main>
