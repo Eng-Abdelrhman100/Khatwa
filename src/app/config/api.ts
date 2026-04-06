@@ -1,2 +1,2 @@
-export const API_BASE_URL = 'https://khatwabackend-production.up.railway.app/api/v1';
+export const API_BASE_URL = 'https://khatwa-backend-sepia.vercel.app/api/v1';
 
